@@ -15,6 +15,7 @@ function save(patch) {
   chrome.storage.sync.set(patch);
 }
 
+// The reel whose visible area in the viewport is the largest.
 function currentVideo() {
   let best = null;
   let bestArea = 0;
@@ -60,13 +61,16 @@ function toast(text) {
   toastTimer = setTimeout(() => el.classList.remove("irc-show"), 900);
 }
 
-function changeSpeed(delta) {
-  const i = SPEEDS.indexOf(settings.speed);
-  const next = SPEEDS[Math.min(Math.max((i === -1 ? 2 : i) + delta, 0), SPEEDS.length - 1)];
+function setSpeed(next) {
   save({ speed: next });
   const video = currentVideo();
   if (video) video.playbackRate = next;
   toast(`Speed ${next}x`);
+}
+
+function changeSpeed(delta) {
+  const i = SPEEDS.indexOf(settings.speed);
+  setSpeed(SPEEDS[Math.min(Math.max((i === -1 ? 2 : i) + delta, 0), SPEEDS.length - 1)]);
 }
 
 function isTyping(target) {
@@ -104,10 +108,7 @@ const actions = {
     changeSpeed(-1);
   },
   0() {
-    save({ speed: 1 });
-    const video = currentVideo();
-    if (video) video.playbackRate = 1;
-    toast("Speed 1x");
+    setSpeed(1);
   },
   a() {
     save({ autoNext: !settings.autoNext });
@@ -152,3 +153,120 @@ document.addEventListener(
   },
   true
 );
+
+// On-screen player bar pinned to the bottom of the current reel. It lives in a shadow root so
+// Instagram's styles can't touch it, and swallows its own clicks so they don't toggle the reel.
+const HIDE_AFTER_MS = 2500;
+
+function formatTime(seconds) {
+  if (!isFinite(seconds)) return "0:00";
+  const s = Math.floor(seconds);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+function createBar() {
+  const host = document.createElement("div");
+  host.id = "irc-bar";
+  host.style.cssText = "position:fixed;z-index:2147483646;display:none;";
+  const root = host.attachShadow({ mode: "open" });
+  root.innerHTML = `
+    <style>
+      .bar { display: flex; align-items: center; gap: 8px; padding: 8px 10px; box-sizing: border-box;
+        background: linear-gradient(transparent, rgba(0, 0, 0, 0.75)); color: #fff;
+        font: 600 12px/1 system-ui, sans-serif; }
+      button { all: unset; cursor: pointer; padding: 4px 6px; border-radius: 4px; font-size: 14px; }
+      button:hover { background: rgba(255, 255, 255, 0.2); }
+      button.on { background: rgba(255, 255, 255, 0.35); }
+      input[type="range"] { accent-color: #fff; cursor: pointer; margin: 0; }
+      #seek { flex: 1; min-width: 0; }
+      #volume { width: 56px; }
+      #time { white-space: nowrap; font-variant-numeric: tabular-nums; }
+    </style>
+    <div class="bar">
+      <button id="play" title="Play / pause (K)"></button>
+      <span id="time"></span>
+      <input id="seek" type="range" min="0" max="1000" value="0" />
+      <button id="mute" title="Mute (M)"></button>
+      <input id="volume" type="range" min="0" max="1" step="0.05" />
+      <button id="speed" title="Kecepatan ([ ])"></button>
+      <button id="auto" title="Auto-next (A)">⏭</button>
+    </div>`;
+  for (const type of ["click", "dblclick", "mousedown", "pointerdown", "mouseup", "pointerup", "touchstart"]) {
+    host.addEventListener(type, (e) => e.stopPropagation());
+  }
+  document.body.appendChild(host);
+  return { host, $: (id) => root.getElementById(id) };
+}
+
+function initBar() {
+  const { host, $ } = createBar();
+  const play = $("play");
+  const time = $("time");
+  const seek = $("seek");
+  const mute = $("mute");
+  const volume = $("volume");
+  const speed = $("speed");
+  const auto = $("auto");
+
+  let dragging = false;
+  let lastMove = 0;
+  let pointer = { x: -1, y: -1 };
+
+  seek.addEventListener("pointerdown", () => (dragging = true));
+  addEventListener("pointerup", () => (dragging = false), true);
+
+  seek.oninput = () => {
+    const video = currentVideo();
+    if (video && video.duration) video.currentTime = (seek.value / 1000) * video.duration;
+  };
+  play.onclick = () => currentVideo() && actions.k(currentVideo());
+  mute.onclick = () => currentVideo() && actions.m(currentVideo());
+  volume.oninput = () => {
+    const video = currentVideo();
+    if (!video) return;
+    video.volume = Number(volume.value);
+    video.muted = video.volume === 0;
+  };
+  speed.onclick = () => setSpeed(SPEEDS[(SPEEDS.indexOf(settings.speed) + 1) % SPEEDS.length]);
+  auto.onclick = () => actions.a();
+
+  document.addEventListener(
+    "mousemove",
+    (e) => {
+      pointer = { x: e.clientX, y: e.clientY };
+      lastMove = Date.now();
+    },
+    true
+  );
+
+  function render() {
+    const video = settings.enabled && currentVideo();
+    if (!video) {
+      host.style.display = "none";
+      return requestAnimationFrame(render);
+    }
+    const r = video.getBoundingClientRect();
+    const hovering =
+      pointer.x >= r.left && pointer.x <= r.right && pointer.y >= r.top && pointer.y <= r.bottom;
+    const visible = video.paused || dragging || (hovering && Date.now() - lastMove < HIDE_AFTER_MS);
+
+    host.style.display = visible ? "block" : "none";
+    if (visible) {
+      host.style.left = `${Math.max(r.left, 0)}px`;
+      host.style.width = `${Math.min(r.width, innerWidth - Math.max(r.left, 0))}px`;
+      host.style.top = `${Math.min(r.bottom, innerHeight) - host.offsetHeight}px`;
+
+      play.textContent = video.paused ? "▶" : "❚❚";
+      time.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
+      if (!dragging && video.duration) seek.value = (video.currentTime / video.duration) * 1000;
+      mute.textContent = video.muted || video.volume === 0 ? "🔇" : "🔊";
+      if (document.activeElement !== volume) volume.value = video.muted ? 0 : video.volume;
+      speed.textContent = `${settings.speed}x`;
+      auto.classList.toggle("on", settings.autoNext);
+    }
+    requestAnimationFrame(render);
+  }
+  render();
+}
+
+initBar();
