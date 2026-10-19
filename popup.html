@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body { width: 260px; margin: 0; padding: 14px; font: 14px system-ui, sans-serif; }
+      h1 { margin: 0 0 10px; font-size: 15px; }
+      label { display: flex; justify-content: space-between; align-items: center; margin: 8px 0; }
+      table { margin-top: 12px; border-collapse: collapse; font-size: 12px; width: 100%; }
+      td { padding: 2px 0; }
+      td:first-child { font-weight: 700; width: 60px; }
+    </style>
+  </head>
+  <body>
+    <h1>Reels Control</h1>
+    <label>Aktif <input type="checkbox" id="enabled" /></label>
+    <label>Auto-next <input type="checkbox" id="autoNext" /></label>
+    <label>
+      Kecepatan
+      <select id="speed">
+        <option>0.5</option><option>0.75</option><option>1</option>
+        <option>1.25</option><option>1.5</option><option>1.75</option><option>2</option>
+      </select>
+    </label>
+    <table>
+      <tr><td>K</td><td>Play / pause</td></tr>
+      <tr><td>J / L</td><td>Mundur / maju 5 detik</td></tr>
+      <tr><td>N / P</td><td>Reel berikutnya / sebelumnya</td></tr>
+      <tr><td>M</td><td>Mute</td></tr>
+      <tr><td>[ / ]</td><td>Kurangi / tambah kecepatan</td></tr>
+      <tr><td>0</td><td>Reset kecepatan</td></tr>
+      <tr><td>A</td><td>Auto-next on/off</td></tr>
+    </table>
+    <script src="popup.js"></script>
+  </body>
+</html>

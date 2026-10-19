@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Instagram Reels Control",
+  "version": "1.0.0",
+  "description": "Kontrol Instagram Reels: play/pause, seek, kecepatan, mute, dan auto-next lewat keyboard.",
+  "permissions": ["storage"],
+  "action": {
+    "default_title": "Reels Control",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.instagram.com/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}
