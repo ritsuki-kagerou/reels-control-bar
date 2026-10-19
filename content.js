@@ -171,25 +171,30 @@ function createBar() {
   const root = host.attachShadow({ mode: "open" });
   root.innerHTML = `
     <style>
-      .bar { display: flex; align-items: center; gap: 8px; padding: 8px 10px; box-sizing: border-box;
+      .bar { display: flex; flex-direction: column; gap: 4px; padding: 18px 10px 8px; box-sizing: border-box;
         background: linear-gradient(transparent, rgba(0, 0, 0, 0.75)); color: #fff;
         font: 600 12px/1 system-ui, sans-serif; }
+      .row { display: flex; align-items: center; gap: 8px; }
+      .spacer { flex: 1; }
       button { all: unset; cursor: pointer; padding: 4px 6px; border-radius: 4px; font-size: 14px; }
       button:hover { background: rgba(255, 255, 255, 0.2); }
       button.on { background: rgba(255, 255, 255, 0.35); }
       input[type="range"] { accent-color: #fff; cursor: pointer; margin: 0; }
-      #seek { flex: 1; min-width: 0; }
+      #seek { width: 100%; }
       #volume { width: 56px; }
       #time { white-space: nowrap; font-variant-numeric: tabular-nums; }
     </style>
     <div class="bar">
-      <button id="play" title="Play / pause (K)"></button>
-      <span id="time"></span>
       <input id="seek" type="range" min="0" max="1000" value="0" />
-      <button id="mute" title="Mute (M)"></button>
-      <input id="volume" type="range" min="0" max="1" step="0.05" />
-      <button id="speed" title="Kecepatan ([ ])"></button>
-      <button id="auto" title="Auto-next (A)">⏭</button>
+      <div class="row">
+        <button id="play" title="Play / pause (K)"></button>
+        <span id="time"></span>
+        <span class="spacer"></span>
+        <button id="mute" title="Mute (M)"></button>
+        <input id="volume" type="range" min="0" max="1" step="0.05" />
+        <button id="speed" title="Kecepatan ([ ])"></button>
+        <button id="auto" title="Auto-next (A)">⏭</button>
+      </div>
     </div>`;
   for (const type of ["click", "dblclick", "mousedown", "pointerdown", "mouseup", "pointerup", "touchstart"]) {
     host.addEventListener(type, (e) => e.stopPropagation());
