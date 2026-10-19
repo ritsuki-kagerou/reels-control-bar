@@ -200,11 +200,11 @@ function createBar() {
     host.addEventListener(type, (e) => e.stopPropagation());
   }
   document.body.appendChild(host);
-  return { host, $: (id) => root.getElementById(id) };
+  return { host, root, $: (id) => root.getElementById(id) };
 }
 
 function initBar() {
-  const { host, $ } = createBar();
+  const { host, root, $ } = createBar();
   const play = $("play");
   const time = $("time");
   const seek = $("seek");
@@ -265,7 +265,7 @@ function initBar() {
       time.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
       if (!dragging && video.duration) seek.value = (video.currentTime / video.duration) * 1000;
       mute.textContent = video.muted || video.volume === 0 ? "🔇" : "🔊";
-      if (document.activeElement !== volume) volume.value = video.muted ? 0 : video.volume;
+      if (root.activeElement !== volume) volume.value = video.muted ? 0 : video.volume;
       speed.textContent = `${settings.speed}x`;
       auto.classList.toggle("on", settings.autoNext);
     }
