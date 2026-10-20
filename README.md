@@ -4,6 +4,8 @@ A Chrome extension (Manifest V3) that adds playback controls to Reels on instagr
 
 > This is an unofficial extension. It is not affiliated with, endorsed by or sponsored by Instagram or Meta.
 
+![Reels Control Bar on a reel](screenshots/store-1-controls.png)
+
 ## Features
 
 - **Control bar** at the bottom of the video with a seek bar, play/pause, current time, speed and auto-next. It has no background, so the video stays fully visible.
@@ -59,7 +61,7 @@ Click the extension icon to enable or disable the extension, turn auto-next on o
 |---|---|
 | `manifest.json` | Extension configuration. The content script runs only on `https://www.instagram.com/*`. |
 | `icons/` | Extension icons (16, 48 and 128 px) |
-| `tools/make_icons.py` | Draws the icons with no dependencies: `python3 tools/make_icons.py icons` |
+| `screenshots/` | Chrome Web Store screenshot and 440×280 promo tile |
 | `content.js` | Main logic: current reel detection, shortcuts, speed, auto-next and the control bar |
 | `content.css` | Styles for the small on-screen notification (toast) |
 | `popup.html`, `popup.js` | Settings popup |
@@ -67,7 +69,7 @@ Click the extension icon to enable or disable the extension, turn auto-next on o
 
 ## How it works
 
-- **Current reel detection:** the extension picks the `<video>` element with the largest visible area in the viewport.
+- **Current reel detection:** the extension picks the `<video>` element with the largest visible area in the viewport. On reel and post pages (`/reel/`, `/reels/`, `/p/`, `/tv/`) it considers every video; elsewhere, such as the explore grid, only videos inside a dialog, so the small autoplaying previews are ignored.
 - **Control bar:** it lives in a shadow DOM so Instagram's CSS can't affect it. Clicks on the bar are not passed on to Instagram, so they don't pause the video.
 - **Auto-next:** reels loop forever, so the `ended` event never fires. The extension moves on when about 0.3 seconds of the video are left.
 - **Moving between reels** (`N`/`P` and auto-next) scrolls the reel container by the height of the video.
@@ -97,3 +99,18 @@ The extension does not send data to any server. See [PRIVACY.md](PRIVACY.md).
 3. Make sure the mouse is moving over the video.
 
 **Shortcuts don't work.** Make sure focus isn't in a text field and the extension is switched on in the popup.
+
+## Reporting issues
+
+Found a bug or have an idea? Please open an issue on this repository's **Issues** tab. It helps to include:
+
+- What you expected and what happened instead.
+- The page you were on (for example `/reels/`, `/explore/` or a single reel) and your Chrome version.
+- Any error shown under **Errors** on the extension's card in `chrome://extensions`, or in the Console (`F12`).
+- A screenshot, if the problem is visual.
+
+Instagram changes its page often, so reports about something that suddenly stopped working are especially useful.
+
+## License
+
+[MIT](LICENSE)
