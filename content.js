@@ -2,7 +2,7 @@ const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 const SEEK_STEP = 5;
 
 // volume stays null until the user picks one, so Instagram's default applies until then.
-const settings = { enabled: true, autoNext: false, speed: 1, volume: null };
+const settings = { enabled: true, autoNext: false, speed: 1, volume: null, barOpen: false };
 
 chrome.storage.sync.get(settings, (s) => {
   Object.assign(settings, s);
@@ -160,6 +160,9 @@ const actions = {
     save({ autoNext: !settings.autoNext });
     toast(`Auto-next ${settings.autoNext ? "on" : "off"}`);
   },
+  c() {
+    save({ barOpen: !settings.barOpen });
+  },
 };
 
 document.addEventListener(
@@ -169,7 +172,7 @@ document.addEventListener(
     const action = actions[e.key.toLowerCase()];
     if (!action) return;
     const video = currentVideo();
-    if (!video && !["a"].includes(e.key.toLowerCase())) return;
+    if (!video && !["a", "c"].includes(e.key.toLowerCase())) return;
     e.preventDefault();
     action(video);
   },
@@ -202,9 +205,39 @@ document.addEventListener(
   true
 );
 
-// On-screen player bar pinned to the bottom of the current reel. It lives in a shadow root so
-// Instagram's styles can't touch it, and swallows its own clicks so they don't toggle the reel.
-const HIDE_AFTER_MS = 2500;
+// On-screen player bar pinned to the bottom of the current reel, opened and closed with a small
+// button on the video (or C). It stays closed by default because it would cover Instagram's own
+// buttons. It lives in a shadow root so Instagram's styles can't touch it, and swallows its own
+// clicks so they don't toggle the reel.
+const BAR_GAP_PX = 8;
+const COMPACT_WIDTH_PX = 340;
+
+function floating(id, css) {
+  const host = document.createElement("div");
+  host.id = id;
+  host.style.cssText = `position:fixed;z-index:2147483646;display:none;${css}`;
+  for (const type of ["click", "dblclick", "mousedown", "pointerdown", "mouseup", "pointerup", "touchstart"]) {
+    host.addEventListener(type, (e) => e.stopPropagation());
+  }
+  document.body.appendChild(host);
+  return host;
+}
+
+function createToggle() {
+  const host = floating("irc-toggle", "");
+  const root = host.attachShadow({ mode: "open" });
+  root.innerHTML = `
+    <style>
+      button { all: unset; cursor: pointer; width: 28px; height: 28px; border-radius: 50%; text-align: center;
+        line-height: 28px; font: 600 14px/28px system-ui, sans-serif; color: #fff;
+        background: rgba(0, 0, 0, 0.55); opacity: 0.7; }
+      button:hover, button.on { opacity: 1; background: rgba(0, 0, 0, 0.8); }
+    </style>
+    <button title="Tampilkan / sembunyikan kontrol (C)">⏵</button>`;
+  const button = root.querySelector("button");
+  button.onclick = () => save({ barOpen: !settings.barOpen });
+  return { host, button };
+}
 
 function formatTime(seconds) {
   if (!isFinite(seconds)) return "0:00";
@@ -213,9 +246,7 @@ function formatTime(seconds) {
 }
 
 function createBar() {
-  const host = document.createElement("div");
-  host.id = "irc-bar";
-  host.style.cssText = "position:fixed;z-index:2147483646;display:none;";
+  const host = floating("irc-bar", "");
   const root = host.attachShadow({ mode: "open" });
   root.innerHTML = `
     <style>
@@ -230,6 +261,7 @@ function createBar() {
       input[type="range"] { accent-color: #fff; cursor: pointer; margin: 0; }
       #seek { width: 100%; }
       #volume { width: 56px; }
+      .compact #volume { display: none; }
       #time { white-space: nowrap; font-variant-numeric: tabular-nums; }
     </style>
     <div class="bar">
@@ -244,10 +276,6 @@ function createBar() {
         <button id="auto" title="Auto-next (A)">⏭</button>
       </div>
     </div>`;
-  for (const type of ["click", "dblclick", "mousedown", "pointerdown", "mouseup", "pointerup", "touchstart"]) {
-    host.addEventListener(type, (e) => e.stopPropagation());
-  }
-  document.body.appendChild(host);
   return { host, root, $: (id) => root.getElementById(id) };
 }
 
@@ -261,9 +289,9 @@ function initBar() {
   const speed = $("speed");
   const auto = $("auto");
 
+  const barEl = root.querySelector(".bar");
+  const toggle = createToggle();
   let dragging = false;
-  let lastMove = 0;
-  let pointer = { x: -1, y: -1 };
 
   seek.addEventListener("pointerdown", () => (dragging = true));
   addEventListener("pointerup", () => (dragging = false), true);
@@ -284,30 +312,30 @@ function initBar() {
   speed.onclick = () => setSpeed(SPEEDS[(SPEEDS.indexOf(settings.speed) + 1) % SPEEDS.length]);
   auto.onclick = () => actions.a();
 
-  document.addEventListener(
-    "mousemove",
-    (e) => {
-      pointer = { x: e.clientX, y: e.clientY };
-      lastMove = Date.now();
-    },
-    true
-  );
-
   function render() {
     const video = settings.enabled && currentVideo();
     if (!video) {
       host.style.display = "none";
+      toggle.host.style.display = "none";
       return requestAnimationFrame(render);
     }
     const r = video.getBoundingClientRect();
-    const hovering =
-      pointer.x >= r.left && pointer.x <= r.right && pointer.y >= r.top && pointer.y <= r.bottom;
-    const visible = video.paused || dragging || (hovering && Date.now() - lastMove < HIDE_AFTER_MS);
+    const left = Math.max(r.left, 0);
 
-    host.style.display = visible ? "block" : "none";
-    if (visible) {
-      host.style.left = `${Math.max(r.left, 0)}px`;
-      host.style.width = `${Math.min(r.width, innerWidth - Math.max(r.left, 0))}px`;
+    toggle.host.style.display = "block";
+    toggle.host.style.left = `${left + 10}px`;
+    toggle.host.style.top = `${Math.max(r.top, 0) + 10}px`;
+    toggle.button.classList.toggle("on", settings.barOpen);
+
+    host.style.display = settings.barOpen ? "block" : "none";
+    if (settings.barOpen) {
+      // Stop short of Instagram's mute button so it stays clickable with the bar open.
+      const native = nativeMuteButton(video);
+      const right = native ? native.getBoundingClientRect().left - BAR_GAP_PX : r.right;
+      host.style.left = `${left}px`;
+      const width = Math.max(Math.min(right, innerWidth) - left, 0);
+      host.style.width = `${width}px`;
+      barEl.classList.toggle("compact", width < COMPACT_WIDTH_PX);
       host.style.top = `${Math.min(r.bottom, innerHeight) - host.offsetHeight}px`;
 
       play.textContent = video.paused ? "▶" : "❚❚";
