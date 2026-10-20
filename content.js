@@ -1,54 +1,58 @@
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 const SEEK_STEP = 5;
 
-// muted/volume stay null until the user picks one, so Instagram's defaults apply until then.
-const settings = { enabled: true, autoNext: false, speed: 1, muted: null, volume: null };
+// volume stays null until the user picks one, so Instagram's default applies until then.
+const settings = { enabled: true, autoNext: false, speed: 1, volume: null };
 
 chrome.storage.sync.get(settings, (s) => {
   Object.assign(settings, s);
   const video = currentVideo();
-  if (video) applyAudio(video);
+  if (video) applyVolume(video);
 });
 chrome.storage.onChanged.addListener((changes) => {
   for (const [key, { newValue }] of Object.entries(changes)) settings[key] = newValue;
   const video = currentVideo();
   if (video) {
     video.playbackRate = settings.speed;
-    applyAudio(video);
+    applyVolume(video);
   }
 });
 
-// Instagram resets mute on every replay and new reel. A volume change right after real user input
-// is the user's choice and gets saved; any other change is Instagram's and gets reverted.
-const USER_INPUT_WINDOW_MS = 400;
-let lastInput = 0;
-let pointerHeld = false;
-
-for (const type of ["pointerdown", "keydown"]) {
-  document.addEventListener(
-    type,
-    (e) => {
-      if (!e.isTrusted) return;
-      lastInput = Date.now();
-      if (type === "pointerdown") pointerHeld = true;
-    },
-    true
-  );
-}
-addEventListener(
-  "pointerup",
-  () => {
-    pointerHeld = false;
-    lastInput = Date.now();
-  },
-  true
-);
-
-function applyAudio(video) {
-  // Chrome pauses an unmuted video before the page has had any user interaction.
-  if (settings.muted === null || !navigator.userActivation.hasBeenActive) return;
-  if (video.muted !== settings.muted) video.muted = settings.muted;
+// Every new reel is a fresh <video> at full volume.
+function applyVolume(video) {
   if (settings.volume !== null && video.volume !== settings.volume) video.volume = settings.volume;
+}
+
+// Instagram keeps its own mute state and re-applies it to every replay and new reel, and it
+// reverts a `video.muted` set from outside. Mute has to go through Instagram's own button.
+function nativeMuteButton(video) {
+  const v = video.getBoundingClientRect();
+  const inside = [...document.querySelectorAll('[role="button"]')].filter((el) => {
+    const r = el.getBoundingClientRect();
+    return (
+      r.width > 0 && r.width <= 48 && r.height <= 48 &&
+      r.left >= v.left && r.right <= v.right && r.top >= v.top && r.bottom <= v.bottom &&
+      el.querySelector("svg")
+    );
+  });
+  const labelled = inside.find((el) => /audio|mute|sound|volume/i.test(el.querySelector("svg").getAttribute("aria-label") || ""));
+  return labelled || inside[inside.length - 1];
+}
+
+// Instagram updates video.muted a moment after the click, so a burst of calls (dragging the
+// volume slider) would otherwise toggle the button back and forth.
+const MUTE_COOLDOWN_MS = 300;
+let lastMuteClick = 0;
+
+function setMuted(video, muted) {
+  if (video.muted === muted || Date.now() - lastMuteClick < MUTE_COOLDOWN_MS) return;
+  const button = nativeMuteButton(video);
+  if (button) {
+    lastMuteClick = Date.now();
+    button.click();
+  } else {
+    video.muted = muted;
+  }
 }
 
 function save(patch) {
@@ -133,8 +137,9 @@ const actions = {
     toast(`+${SEEK_STEP}s`);
   },
   m(video) {
-    video.muted = !video.muted;
-    toast(video.muted ? "Muted" : "Unmuted");
+    const muted = !video.muted;
+    setMuted(video, muted);
+    toast(muted ? "Muted" : "Unmuted");
   },
   n() {
     step(1);
@@ -177,21 +182,7 @@ document.addEventListener(
   (e) => {
     if (!(e.target instanceof HTMLVideoElement)) return;
     e.target.playbackRate = settings.speed;
-    if (settings.enabled) applyAudio(e.target);
-  },
-  true
-);
-
-document.addEventListener(
-  "volumechange",
-  (e) => {
-    const video = e.target;
-    if (!settings.enabled || !(video instanceof HTMLVideoElement)) return;
-    if (pointerHeld || Date.now() - lastInput < USER_INPUT_WINDOW_MS) {
-      if (video === currentVideo()) save({ muted: video.muted, volume: video.volume });
-    } else {
-      applyAudio(video);
-    }
+    if (settings.enabled) applyVolume(e.target);
   },
   true
 );
@@ -287,7 +278,8 @@ function initBar() {
     const video = currentVideo();
     if (!video) return;
     video.volume = Number(volume.value);
-    video.muted = video.volume === 0;
+    if (video.volume > 0) save({ volume: video.volume });
+    setMuted(video, video.volume === 0);
   };
   speed.onclick = () => setSpeed(SPEEDS[(SPEEDS.indexOf(settings.speed) + 1) % SPEEDS.length]);
   auto.onclick = () => actions.a();
