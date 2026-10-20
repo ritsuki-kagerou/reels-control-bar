@@ -47,11 +47,18 @@ function save(patch) {
   chrome.storage.sync.set(patch);
 }
 
+// Grids (explore, profiles, home) hold many small preview videos; only reel pages and the
+// post/reel dialog opened from a grid have a video worth controlling.
+function candidateVideos() {
+  if (/^\/(reels?|p|tv)\//.test(location.pathname)) return document.querySelectorAll("video");
+  return document.querySelectorAll('[role="dialog"] video');
+}
+
 // The reel whose visible area in the viewport is the largest.
 function currentVideo() {
   let best = null;
   let bestArea = 0;
-  for (const video of document.querySelectorAll("video")) {
+  for (const video of candidateVideos()) {
     const r = video.getBoundingClientRect();
     const w = Math.min(r.right, innerWidth) - Math.max(r.left, 0);
     const h = Math.min(r.bottom, innerHeight) - Math.max(r.top, 0);
