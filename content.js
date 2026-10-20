@@ -1,14 +1,55 @@
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 const SEEK_STEP = 5;
 
-const settings = { enabled: true, autoNext: false, speed: 1 };
+// muted/volume stay null until the user picks one, so Instagram's defaults apply until then.
+const settings = { enabled: true, autoNext: false, speed: 1, muted: null, volume: null };
 
-chrome.storage.sync.get(settings, (s) => Object.assign(settings, s));
+chrome.storage.sync.get(settings, (s) => {
+  Object.assign(settings, s);
+  const video = currentVideo();
+  if (video) applyAudio(video);
+});
 chrome.storage.onChanged.addListener((changes) => {
   for (const [key, { newValue }] of Object.entries(changes)) settings[key] = newValue;
   const video = currentVideo();
-  if (video) video.playbackRate = settings.speed;
+  if (video) {
+    video.playbackRate = settings.speed;
+    applyAudio(video);
+  }
 });
+
+// Instagram resets mute on every replay and new reel. A volume change right after real user input
+// is the user's choice and gets saved; any other change is Instagram's and gets reverted.
+const USER_INPUT_WINDOW_MS = 400;
+let lastInput = 0;
+let pointerHeld = false;
+
+for (const type of ["pointerdown", "keydown"]) {
+  document.addEventListener(
+    type,
+    (e) => {
+      if (!e.isTrusted) return;
+      lastInput = Date.now();
+      if (type === "pointerdown") pointerHeld = true;
+    },
+    true
+  );
+}
+addEventListener(
+  "pointerup",
+  () => {
+    pointerHeld = false;
+    lastInput = Date.now();
+  },
+  true
+);
+
+function applyAudio(video) {
+  // Chrome pauses an unmuted video before the page has had any user interaction.
+  if (settings.muted === null || !navigator.userActivation.hasBeenActive) return;
+  if (video.muted !== settings.muted) video.muted = settings.muted;
+  if (settings.volume !== null && video.volume !== settings.volume) video.volume = settings.volume;
+}
 
 function save(patch) {
   Object.assign(settings, patch);
@@ -134,7 +175,23 @@ document.addEventListener(
 document.addEventListener(
   "play",
   (e) => {
-    if (e.target instanceof HTMLVideoElement) e.target.playbackRate = settings.speed;
+    if (!(e.target instanceof HTMLVideoElement)) return;
+    e.target.playbackRate = settings.speed;
+    if (settings.enabled) applyAudio(e.target);
+  },
+  true
+);
+
+document.addEventListener(
+  "volumechange",
+  (e) => {
+    const video = e.target;
+    if (!settings.enabled || !(video instanceof HTMLVideoElement)) return;
+    if (pointerHeld || Date.now() - lastInput < USER_INPUT_WINDOW_MS) {
+      if (video === currentVideo()) save({ muted: video.muted, volume: video.volume });
+    } else {
+      applyAudio(video);
+    }
   },
   true
 );
