@@ -1,11 +1,20 @@
 {
   "manifest_version": 3,
-  "name": "Instagram Reels Control",
+  "name": "Reels Control Bar",
   "version": "1.0.0",
-  "description": "Kontrol Instagram Reels: play/pause, seek, kecepatan, mute, dan auto-next lewat keyboard.",
+  "description": "Control bar, shortcut keyboard, kecepatan, dan auto-next untuk video Reels di web. Tidak resmi dan tidak berafiliasi dengan Instagram.",
   "permissions": ["storage"],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "action": {
-    "default_title": "Reels Control",
+    "default_title": "Reels Control Bar",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png"
+    },
     "default_popup": "popup.html"
   },
   "content_scripts": [
