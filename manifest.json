@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Reels Control Bar",
   "version": "1.0.0",
-  "description": "Control bar, shortcut keyboard, kecepatan, dan auto-next untuk video Reels di web. Tidak resmi dan tidak berafiliasi dengan Instagram.",
+  "description": "Control bar, keyboard shortcuts, playback speed and auto-next for Reels on the web. Unofficial; not affiliated with Instagram.",
   "permissions": ["storage"],
   "icons": {
     "16": "icons/icon16.png",

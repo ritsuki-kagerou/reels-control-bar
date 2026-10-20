@@ -226,7 +226,7 @@ function createBar() {
         <button id="play" title="Play / pause (K)"></button>
         <span id="time"></span>
         <span class="spacer"></span>
-        <select id="speed" title="Kecepatan ([ ])"></select>
+        <select id="speed" title="Speed ([ ])"></select>
         <button id="auto" title="Auto-next (A)">⏭</button>
       </div>
     </div>`;

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="id">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <style>
@@ -13,22 +13,27 @@
   </head>
   <body>
     <h1>Reels Control Bar</h1>
-    <label>Aktif <input type="checkbox" id="enabled" /></label>
+    <label>Enabled <input type="checkbox" id="enabled" /></label>
     <label>Auto-next <input type="checkbox" id="autoNext" /></label>
     <label>
-      Kecepatan
+      Speed
       <select id="speed">
-        <option>0.5</option><option>0.75</option><option>1</option>
-        <option>1.25</option><option>1.5</option><option>1.75</option><option>2</option>
+        <option value="0.5">0.5x</option>
+        <option value="0.75">0.75x</option>
+        <option value="1">1x</option>
+        <option value="1.25">1.25x</option>
+        <option value="1.5">1.5x</option>
+        <option value="1.75">1.75x</option>
+        <option value="2">2x</option>
       </select>
     </label>
     <table>
       <tr><td>K</td><td>Play / pause</td></tr>
-      <tr><td>J / L</td><td>Mundur / maju 5 detik</td></tr>
-      <tr><td>N / P</td><td>Reel berikutnya / sebelumnya</td></tr>
-      <tr><td>M</td><td>Mute</td></tr>
-      <tr><td>[ / ]</td><td>Kurangi / tambah kecepatan</td></tr>
-      <tr><td>0</td><td>Reset kecepatan</td></tr>
+      <tr><td>J / L</td><td>Rewind / forward 5 seconds</td></tr>
+      <tr><td>N / P</td><td>Next / previous reel</td></tr>
+      <tr><td>M</td><td>Mute / unmute</td></tr>
+      <tr><td>[ / ]</td><td>Slower / faster</td></tr>
+      <tr><td>0</td><td>Reset speed</td></tr>
       <tr><td>A</td><td>Auto-next on/off</td></tr>
     </table>
     <script src="popup.js"></script>
