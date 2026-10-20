@@ -206,9 +206,8 @@ function createBar() {
   const root = host.attachShadow({ mode: "open" });
   root.innerHTML = `
     <style>
-      .bar { display: flex; flex-direction: column; gap: 4px; padding: 18px 10px 8px; box-sizing: border-box;
-        background: linear-gradient(transparent, rgba(0, 0, 0, 0.75)); color: #fff;
-        font: 600 12px/1 system-ui, sans-serif; }
+      .bar { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; box-sizing: border-box;
+        color: #fff; font: 600 12px/1 system-ui, sans-serif; }
       .row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
       .spacer { flex: 1; }
       button { all: unset; cursor: pointer; padding: 4px 6px; border-radius: 4px; font-size: 14px; }
@@ -224,7 +223,6 @@ function createBar() {
         <button id="play" title="Play / pause (K)"></button>
         <span id="time"></span>
         <span class="spacer"></span>
-        <button id="mute" title="Mute (M)"></button>
         <button id="speed" title="Kecepatan ([ ])"></button>
         <button id="auto" title="Auto-next (A)">⏭</button>
       </div>
@@ -241,7 +239,6 @@ function initBar() {
   const play = $("play");
   const time = $("time");
   const seek = $("seek");
-  const mute = $("mute");
   const speed = $("speed");
   const auto = $("auto");
 
@@ -257,7 +254,6 @@ function initBar() {
     if (video && video.duration) video.currentTime = (seek.value / 1000) * video.duration;
   };
   play.onclick = () => currentVideo() && actions.k(currentVideo());
-  mute.onclick = () => currentVideo() && actions.m(currentVideo());
   speed.onclick = () => setSpeed(SPEEDS[(SPEEDS.indexOf(settings.speed) + 1) % SPEEDS.length]);
   auto.onclick = () => actions.a();
 
@@ -294,7 +290,6 @@ function initBar() {
       play.textContent = video.paused ? "▶" : "❚❚";
       time.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
       if (!dragging && video.duration) seek.value = (video.currentTime / video.duration) * 1000;
-      mute.textContent = video.muted ? "🔇" : "🔊";
       speed.textContent = `${settings.speed}x`;
       auto.classList.toggle("on", settings.autoNext);
     }
