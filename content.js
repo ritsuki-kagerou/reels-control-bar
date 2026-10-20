@@ -214,6 +214,9 @@ function createBar() {
       button:hover { background: rgba(255, 255, 255, 0.2); }
       button.on { background: rgba(255, 255, 255, 0.35); }
       input[type="range"] { accent-color: #fff; cursor: pointer; margin: 0; }
+      select { cursor: pointer; padding: 3px 4px; border: 0; border-radius: 4px; outline: 0;
+        background: rgba(0, 0, 0, 0.55); color: #fff; font: inherit; }
+      select option { background: #fff; color: #000; }
       #seek { width: 100%; }
       #time { white-space: nowrap; font-variant-numeric: tabular-nums; }
     </style>
@@ -223,7 +226,7 @@ function createBar() {
         <button id="play" title="Play / pause (K)"></button>
         <span id="time"></span>
         <span class="spacer"></span>
-        <button id="speed" title="Kecepatan ([ ])"></button>
+        <select id="speed" title="Kecepatan ([ ])"></select>
         <button id="auto" title="Auto-next (A)">⏭</button>
       </div>
     </div>`;
@@ -231,11 +234,11 @@ function createBar() {
     host.addEventListener(type, (e) => e.stopPropagation());
   }
   document.body.appendChild(host);
-  return { host, $: (id) => root.getElementById(id) };
+  return { host, root, $: (id) => root.getElementById(id) };
 }
 
 function initBar() {
-  const { host, $ } = createBar();
+  const { host, root, $ } = createBar();
   const play = $("play");
   const time = $("time");
   const seek = $("seek");
@@ -254,7 +257,11 @@ function initBar() {
     if (video && video.duration) video.currentTime = (seek.value / 1000) * video.duration;
   };
   play.onclick = () => currentVideo() && actions.k(currentVideo());
-  speed.onclick = () => setSpeed(SPEEDS[(SPEEDS.indexOf(settings.speed) + 1) % SPEEDS.length]);
+  for (const value of SPEEDS) speed.add(new Option(`${value}x`, value));
+  speed.onchange = () => {
+    setSpeed(Number(speed.value));
+    speed.blur(); // a focused <select> would also react to the keyboard shortcuts
+  };
   auto.onclick = () => actions.a();
 
   document.addEventListener(
@@ -275,7 +282,10 @@ function initBar() {
     const r = video.getBoundingClientRect();
     const hovering =
       pointer.x >= r.left && pointer.x <= r.right && pointer.y >= r.top && pointer.y <= r.bottom;
-    const visible = video.paused || dragging || (hovering && Date.now() - lastMove < HIDE_AFTER_MS);
+    // The open dropdown list is drawn outside the page, so the mouse over it isn't "hovering".
+    const choosingSpeed = root.activeElement === speed;
+    const visible =
+      video.paused || dragging || choosingSpeed || (hovering && Date.now() - lastMove < HIDE_AFTER_MS);
 
     host.style.display = visible ? "block" : "none";
     if (visible) {
@@ -290,7 +300,7 @@ function initBar() {
       play.textContent = video.paused ? "▶" : "❚❚";
       time.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
       if (!dragging && video.duration) seek.value = (video.currentTime / video.duration) * 1000;
-      speed.textContent = `${settings.speed}x`;
+      speed.value = String(settings.speed);
       auto.classList.toggle("on", settings.autoNext);
     }
     requestAnimationFrame(render);
