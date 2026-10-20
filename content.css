@@ -3,11 +3,13 @@
   bottom: 40px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 8px 16px;
+  padding: 9px 18px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(20, 20, 22, 0.85);
+  backdrop-filter: blur(8px);
   color: #fff;
-  font: 600 14px/1 system-ui, sans-serif;
+  font: 500 13px/1 system-ui, sans-serif;
+  letter-spacing: 0.01em;
   z-index: 2147483647;
   pointer-events: none;
   opacity: 0;

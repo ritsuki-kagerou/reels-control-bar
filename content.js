@@ -206,35 +206,52 @@ function formatTime(seconds) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
+const ICON = {
+  play: '<svg viewBox="0 0 24 24"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14z"/></svg>',
+  pause: '<svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>',
+  next: '<svg viewBox="0 0 24 24"><path d="M6 6.2v11.6a1 1 0 0 0 1.55.83l8.2-5.8a1 1 0 0 0 0-1.66l-8.2-5.8A1 1 0 0 0 6 6.2z"/><rect x="17" y="5.5" width="2.5" height="13" rx="1"/></svg>',
+};
+
 function createBar() {
   const host = document.createElement("div");
   host.id = "irc-bar";
-  host.style.cssText = "position:fixed;z-index:2147483646;display:none;";
+  host.style.cssText = "position:fixed;z-index:2147483646;display:none;transition:opacity 0.18s;";
   const root = host.attachShadow({ mode: "open" });
   root.innerHTML = `
     <style>
-      .bar { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; box-sizing: border-box;
-        color: #fff; font: 600 12px/1 system-ui, sans-serif; }
-      .row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+      .bar { display: flex; flex-direction: column; gap: 2px; padding: 0 16px; box-sizing: border-box;
+        color: #fff; font: 500 12px/1 system-ui, sans-serif;
+        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55)); }
+      .row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; height: 28px; }
       .spacer { flex: 1; }
-      button { all: unset; cursor: pointer; padding: 4px 6px; border-radius: 4px; font-size: 14px; }
-      button:hover { background: rgba(255, 255, 255, 0.2); }
-      button.on { background: rgba(255, 255, 255, 0.35); }
-      input[type="range"] { accent-color: #fff; cursor: pointer; margin: 0; }
-      select { cursor: pointer; padding: 3px 4px; border: 0; border-radius: 4px; outline: 0;
-        background: rgba(0, 0, 0, 0.55); color: #fff; font: inherit; }
-      select option { background: #fff; color: #000; }
-      #seek { width: 100%; }
-      #time { white-space: nowrap; font-variant-numeric: tabular-nums; }
+      button { all: unset; cursor: pointer; display: grid; place-items: center; width: 28px; height: 28px;
+        border-radius: 50%; color: rgba(255, 255, 255, 0.85); transition: background 0.15s, color 0.15s, transform 0.1s; }
+      button:hover { background: rgba(255, 255, 255, 0.18); color: #fff; }
+      button:active { transform: scale(0.92); }
+      button.on { background: #fff; color: #000; }
+      button svg { width: 18px; height: 18px; fill: currentColor; }
+      input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 14px; margin: 0;
+        background: transparent; cursor: pointer; --p: 0%; }
+      input[type="range"]::-webkit-slider-runnable-track { height: 3px; border-radius: 2px; transition: height 0.12s;
+        background: linear-gradient(to right, #fff var(--p), rgba(255, 255, 255, 0.3) var(--p)); }
+      input[type="range"]:hover::-webkit-slider-runnable-track { height: 5px; }
+      input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; margin-top: -4.5px;
+        border-radius: 50%; background: #fff; transform: scale(0); transition: transform 0.12s; }
+      input[type="range"]:hover::-webkit-slider-thumb { transform: scale(1); }
+      select { appearance: none; cursor: pointer; padding: 5px 8px; border: 0; border-radius: 999px; outline: 0;
+        background: rgba(255, 255, 255, 0.14); color: #fff; font: inherit; font-weight: 600; transition: background 0.15s; }
+      select:hover { background: rgba(255, 255, 255, 0.26); }
+      select option { background: #1c1c1e; color: #fff; }
+      #time { white-space: nowrap; margin-left: 4px; color: rgba(255, 255, 255, 0.85); font-variant-numeric: tabular-nums; }
     </style>
     <div class="bar">
       <input id="seek" type="range" min="0" max="1000" value="0" />
-      <div class="row">
+      <div class="row" id="row">
         <button id="play" title="Play / pause (K)"></button>
         <span id="time"></span>
         <span class="spacer"></span>
         <select id="speed" title="Speed ([ ])"></select>
-        <button id="auto" title="Auto-next (A)">⏭</button>
+        <button id="auto" title="Auto-next (A)">${ICON.next}</button>
       </div>
     </div>`;
   for (const type of ["click", "dblclick", "mousedown", "pointerdown", "mouseup", "pointerup", "touchstart"]) {
@@ -294,7 +311,11 @@ function initBar() {
     const visible =
       video.paused || dragging || choosingSpeed || (hovering && Date.now() - lastMove < HIDE_AFTER_MS);
 
-    host.style.display = visible ? "block" : "none";
+    // Fade instead of toggling display so the bar eases in and out; it keeps its layout box
+    // (needed to pin it to the reel's bottom) but ignores the mouse while faded out.
+    host.style.display = "block";
+    host.style.opacity = visible ? "1" : "0";
+    host.style.pointerEvents = visible ? "auto" : "none";
     if (visible) {
       // Stop short of Instagram's mute button so it stays clickable while the bar is showing.
       const native = nativeMuteButton(video);
@@ -302,11 +323,22 @@ function initBar() {
       const right = Math.min(native ? native.getBoundingClientRect().left - BAR_GAP_PX : r.right, innerWidth);
       host.style.left = `${left}px`;
       host.style.width = `${Math.max(right - left, 0)}px`;
-      host.style.top = `${Math.min(r.bottom, innerHeight) - host.offsetHeight}px`;
+      // Center the control row on Instagram's mute button so the two read as one strip.
+      const row = $("row");
+      const rowCenter = row.offsetTop + row.offsetHeight / 2;
+      const mid = native
+        ? native.getBoundingClientRect().top + native.getBoundingClientRect().height / 2
+        : Math.min(r.bottom, innerHeight) - 30;
+      host.style.top = `${mid - rowCenter}px`;
 
-      play.textContent = video.paused ? "▶" : "❚❚";
+      const icon = video.paused ? ICON.play : ICON.pause;
+      if (play.dataset.icon !== icon) {
+        play.dataset.icon = icon;
+        play.innerHTML = icon;
+      }
       time.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
       if (!dragging && video.duration) seek.value = (video.currentTime / video.duration) * 1000;
+      seek.style.setProperty("--p", `${seek.value / 10}%`);
       speed.value = String(settings.speed);
       auto.classList.toggle("on", settings.autoNext);
     }
